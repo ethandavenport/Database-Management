@@ -1,0 +1,254 @@
+-- MIS 325 Assignment 2
+-- Ethan Davenport
+-- ead2896
+
+-- DROP all tables and sequences in the proper order
+-- Ethan Davenport ead2896
+DROP TABLE Member_Address_Link;
+DROP TABLE Member_Address;
+DROP TABLE Member_Phone;
+DROP TABLE Member_Tax_ID;
+DROP TABLE Transaction_History;
+DROP TABLE Loans;
+DROP TABLE Employees;
+DROP TABLE Branch;
+DROP TABLE Members;
+
+DROP SEQUENCE member_id_sq;
+DROP SEQUENCE phone_id_sq;
+DROP SEQUENCE address_id_sq;
+DROP SEQUENCE branch_id_sq;
+DROP SEQUENCE employee_id_sq;
+DROP SEQUENCE transaction_id_sq;
+
+
+-- CREATE all sequences
+-- Ethan Davenport ead2896
+CREATE SEQUENCE member_id_sq;
+CREATE SEQUENCE phone_id_sq;
+CREATE SEQUENCE address_id_sq;
+CREATE SEQUENCE branch_id_sq;
+CREATE SEQUENCE employee_id_sq START WITH 90000;
+CREATE SEQUENCE transaction_id_sq;
+
+
+-- CREATE all tables with proper column names, data types, and constraints
+-- Ethan Davenport ead2896
+CREATE TABLE Members (
+    Member_ID   NUMBER          NOT NULL    PRIMARY KEY,
+    First_Name  VARCHAR(40)     NOT NULL,
+    Middle_Name VARCHAR(40),
+    Last_Name   VARCHAR(50)     NOT NULL,
+    Email       VARCHAR(50)     NOT NULL    UNIQUE,
+    CONSTRAINT email_length_check CHECK (LENGTH(Email) >= 7)
+);
+
+CREATE TABLE Branch (
+    Branch_ID       NUMBER          NOT NULL    PRIMARY KEY,
+    Branch_Name     VARCHAR(40)     NOT NULL    UNIQUE,
+    Address         VARCHAR(50)     NOT NULL,
+    City            VARCHAR(20)     NOT NULL,
+    Branch_State    CHAR(2)         NOT NULL,
+    Zip_Code        CHAR(5)         NOT NULL
+);
+
+CREATE TABLE Employees (
+    Employee_ID     NUMBER          NOT NULL    PRIMARY KEY,
+    Branch_ID       NUMBER          NOT NULL,
+    First_Name      VARCHAR(40)     NOT NULL,
+    Last_Name       VARCHAR(50)     NOT NULL,
+    Tax_ID_Number   CHAR(9)         NOT NULL    UNIQUE,
+    Birthday        DATE            NOT NULL,
+    Mailing_Address VARCHAR(50)     NOT NULL,
+    Mailing_City    VARCHAR(20)     NOT NULL,
+    Mailing_State   CHAR(2)         NOT NULL,
+    Mailing_Zip     CHAR(5)         NOT NULL,
+    Phone_Number    CHAR(12)        NOT NULL,
+    Email           VARCHAR(50)     NOT NULL,
+    Emp_Level       CHAR(1)         NOT NULL,
+    CONSTRAINT Employees_fk FOREIGN KEY (Branch_ID) REFERENCES Branch (Branch_ID),
+    CONSTRAINT Level_ck CHECK (Emp_Level in ('1','2','3','4','5'))
+);
+
+CREATE TABLE Loans (
+    Loan_Number         CHAR(12)    NOT NULL    PRIMARY KEY,
+    Member_ID           NUMBER      NOT NULL,
+    Employee_ID         NUMBER      NOT NULL,
+    Loan_Type           CHAR(2)     NOT NULL,
+    Original_Amount     NUMBER      NOT NULL,
+    Origination_Date    DATE        NOT NULL,
+    Num_of_Payments     NUMBER      NOT NULL,
+    Interest_Rate       NUMBER(2)   NOT NULL,
+    Payment_Amount      NUMBER      NOT NULL,
+    Maturity_Date       DATE        NOT NULL,
+    Loan_Notes          VARCHAR(250),
+    Loan_Status         CHAR(1)     NOT NULL,
+    CONSTRAINT Loans_fk1 FOREIGN KEY (Member_ID) REFERENCES Members (Member_ID),
+    CONSTRAINT Loans_fk2 FOREIGN KEY (Employee_ID) REFERENCES Employees (Employee_ID),
+    CONSTRAINT Date_order_ck CHECK (Maturity_Date >= Origination_Date),
+    CONSTRAINT Loan_status_ck CHECK (Loan_Status in ('A','R','P','D','C'))
+);
+
+CREATE TABLE Transaction_History (
+    Transaction_ID          NUMBER      NOT NULL            PRIMARY KEY,
+    Loan_Number             CHAR(12)    NOT NULL,
+    Transaction_Date        DATE        DEFAULT SYSDATE     NOT NULL,
+    Amount                  NUMBER      NOT NULL,
+    Transaction_Description VARCHAR(100)NOT NULL,
+    Updated_Balance         NUMBER      NOT NULL,
+    CONSTRAINT Transaction_History_fk FOREIGN KEY (Loan_Number) REFERENCES Loans (Loan_Number),
+    CONSTRAINT Balance_ck CHECK (Updated_Balance >= 0)
+);
+
+CREATE TABLE Member_Tax_ID (
+    Member_ID   NUMBER      NOT NULL    PRIMARY KEY,
+    Tax_ID      CHAR(9)     NOT NULL    UNIQUE
+);
+
+CREATE TABLE Member_Phone (
+    Phone_ID        NUMBER      NOT NULL    PRIMARY KEY,
+    Member_ID       NUMBER      NOT NULL,
+    Phone_Number    CHAR(12)    NOT NULL,
+    Phone_Type      VARCHAR(10) NOT NULL,
+    CONSTRAINT Member_Phone_fk FOREIGN KEY (Member_ID) REFERENCES Members (Member_ID)
+);
+
+CREATE TABLE Member_Address (
+    Address_ID      NUMBER      NOT NULL    PRIMARY KEY,
+    Address_1       VARCHAR(50) NOT NULL,
+    Address_2       VARCHAR(50),
+    City            VARCHAR(20) NOT NULL,
+    Member_State    CHAR(2)     NOT NULL,
+    Zip_code        CHAR(5)     NOT NULL
+);
+
+CREATE TABLE Member_Address_Link (
+    Member_ID       NUMBER      NOT NULL,
+    Address_ID      NUMBER      NOT NULL,
+    Address_Status  CHAR(1)     NOT NULL,
+    CONSTRAINT Link_pk PRIMARY KEY (Member_ID, Address_ID),
+    CONSTRAINT Link_fk1 FOREIGN KEY (Member_ID) REFERENCES Members (Member_ID),
+    CONSTRAINT Link_fk2 FOREIGN KEY (Address_ID) REFERENCES Member_Address (Address_ID)
+);
+
+
+-- INSERT made up data into every table
+-- Ethan Davenport ead2896
+INSERT INTO Members(Member_ID, First_Name, Middle_Name, Last_Name, Email)
+VALUES (member_id_sq.nextval, 'Ethan', 'Andrew', 'Davenport', 'ead2896@utexas.edu');
+INSERT INTO Members(Member_ID, First_Name, Middle_Name, Last_Name, Email)
+VALUES (member_id_sq.nextval, 'Nathan', 'Himothy', 'Eovaldi', 'nhe132@utexas.edu');
+COMMIT;
+
+INSERT INTO Member_Tax_ID(Member_ID, Tax_ID)
+VALUES (1,'123456789');
+INSERT INTO Member_Tax_ID(Member_ID, Tax_ID)
+VALUES (2,'987654321');
+COMMIT;
+
+INSERT INTO Member_Address(Address_ID, Address_1, Address_2, City, Member_State, Zip_code)
+VALUES(address_id_sq.nextval, '2604 Woodmill Dr', null, 'Cheyenne', 'WY', '34088');
+INSERT INTO Member_Address(Address_ID, Address_1, Address_2, City, Member_State, Zip_code)
+VALUES (address_id_sq.nextval, '702 Nueces St', 'APT 2502', 'Austin', 'TX', '78705');
+INSERT INTO Member_Address(Address_ID, Address_1, Address_2, City, Member_State, Zip_code)
+VALUES (address_id_sq.nextval, '4720 Cockrell Way', null, 'Tacoma', 'WA', '93301');
+COMMIT;
+
+INSERT INTO Member_Address_Link(Member_ID, Address_ID, Address_Status)
+VALUES (1, 1, 'P');
+INSERT INTO Member_Address_Link(Member_ID, Address_ID, Address_Status)
+VALUES (1, 2, 'I');
+INSERT INTO Member_Address_Link(Member_ID, Address_ID, Address_Status)
+VALUES (2, 3, 'P');
+INSERT INTO Member_Address_Link(Member_ID, Address_ID, Address_Status)
+VALUES (2, 2, 'I');
+COMMIT;
+
+INSERT INTO Member_Phone(Phone_ID, Member_ID, Phone_Number, Phone_Type)
+VALUES (phone_id_sq.nextval, 1, '512-464-0123', 'Home');
+INSERT INTO Member_Phone(Phone_ID, Member_ID, Phone_Number, Phone_Type)
+VALUES (phone_id_sq.nextval, 1, '512-321-0464', 'Cell');
+INSERT INTO Member_Phone(Phone_ID, Member_ID, Phone_Number, Phone_Type)
+VALUES (phone_id_sq.nextval, 2, '512-972-5535', 'Home');
+INSERT INTO Member_Phone(Phone_ID, Member_ID, Phone_Number, Phone_Type)
+VALUES (phone_id_sq.nextval, 2, '512-535-5972', 'Cell');
+COMMIT;
+
+INSERT INTO Branch(Branch_ID, Branch_Name, Address, City, Branch_State, Zip_Code)
+VALUES (branch_id_sq.nextval, 'Utica', '4012 Chili St', 'Utica', 'NY', '13501');
+INSERT INTO Branch(Branch_ID, Branch_Name, Address, City, Branch_State, Zip_Code)
+VALUES (branch_id_sq.nextval, 'Scranton', '8080 Fivekay Blvd', 'Scranton', 'PA', '24051');
+COMMIT;
+
+INSERT INTO Employees(Employee_ID, Branch_ID, First_Name, Last_Name, Tax_ID_Number, Birthday, Mailing_Address, Mailing_City, Mailing_State, Mailing_Zip, Phone_Number, Email, Emp_Level)
+VALUES (employee_id_sq.nextval, 1, 'Helen', 'DeGeneres', '012345678', TO_DATE('1969-09-14','YYYY-MM-DD'), '303 Seminar Rd', 'Fairfax', 'VA', '50504', '123-214-8964', 'tires@gmail.com', '3');
+INSERT INTO Employees(Employee_ID, Branch_ID, First_Name, Last_Name, Tax_ID_Number, Birthday, Mailing_Address, Mailing_City, Mailing_State, Mailing_Zip, Phone_Number, Email, Emp_Level)
+VALUES (employee_id_sq.nextval, 2, 'Allen', 'DeSelfish', '876543210', TO_DATE('1970-05-19','YYYY-MM-DD'), '404 Error Ln', 'Tallahassee', 'FL', '61987', '321-469-8412', 'wheels@gmail.com', '4');
+INSERT INTO Employees(Employee_ID, Branch_ID, First_Name, Last_Name, Tax_ID_Number, Birthday, Mailing_Address, Mailing_City, Mailing_State, Mailing_Zip, Phone_Number, Email, Emp_Level)
+VALUES (employee_id_sq.nextval, 2, 'Melon', 'DeApathy', '543219876', TO_DATE('1986-12-18','YYYY-MM-DD'), '505 Seminole St', 'Reno', 'NV', '22445', '665-556-7071', 'gas@gmail.com', '1');
+INSERT INTO Employees(Employee_ID, Branch_ID, First_Name, Last_Name, Tax_ID_Number, Birthday, Mailing_Address, Mailing_City, Mailing_State, Mailing_Zip, Phone_Number, Email, Emp_Level)
+VALUES (employee_id_sq.nextval, 1, 'Valen', 'DeRelish', '678954321', TO_DATE('1982-11-17','YYYY-MM-DD'), '606 Egret Blvd', 'Fargo', 'ND', '54242', '334-443-6960', 'breaks@gmail.com', '5');
+COMMIT;
+
+SELECT *
+FROM Employees;
+
+INSERT INTO Loans(Loan_Number, Member_ID, Employee_ID, Loan_Type, Original_Amount, Origination_Date, Num_of_Payments, Interest_Rate, Payment_Amount, Maturity_Date, Loan_Notes, Loan_Status)
+VALUES ('SCT000000001', 1, 90000, 'AB', 7000, TO_DATE('2023-08-16','YYYY-MM-DD'), 36, 10.841, 205, TO_DATE('2026-08-16','YYYY-MM-DD'), null, 'P');
+INSERT INTO Loans(Loan_Number, Member_ID, Employee_ID, Loan_Type, Original_Amount, Origination_Date, Num_of_Payments, Interest_Rate, Payment_Amount, Maturity_Date, Loan_Notes, Loan_Status)
+VALUES ('SCT000000002', 1, 90001, 'CD', 16000, TO_DATE('2023-08-16','YYYY-MM-DD'), 60, 4.059, 280, TO_DATE('2028-08-16','YYYY-MM-DD'), null, 'D');
+INSERT INTO Loans(Loan_Number, Member_ID, Employee_ID, Loan_Type, Original_Amount, Origination_Date, Num_of_Payments, Interest_Rate, Payment_Amount, Maturity_Date, Loan_Notes, Loan_Status)
+VALUES ('SCT000000003', 2, 90002, 'EF', 40000, TO_DATE('2023-08-16','YYYY-MM-DD'), 120, 1.424, 350, TO_DATE('2033-08-16','YYYY-MM-DD'), null, 'P');
+INSERT INTO Loans(Loan_Number, Member_ID, Employee_ID, Loan_Type, Original_Amount, Origination_Date, Num_of_Payments, Interest_Rate, Payment_Amount, Maturity_Date, Loan_Notes, Loan_Status)
+VALUES ('SCT000000004', 2, 90003, 'GH', 3100, TO_DATE('2023-08-16','YYYY-MM-DD'), 36, 6.671, 92, TO_DATE('2026-08-16','YYYY-MM-DD'), null, 'R');
+COMMIT;
+
+INSERT INTO Transaction_History(Transaction_ID, Loan_Number, Transaction_Date, Amount, Transaction_Description, Updated_Balance)
+VALUES (transaction_id_sq.nextval, 'SCT000000001', TO_DATE('2023-09-16','YYYY-MM-DD'), 205, 'Payment 1', 6795);
+INSERT INTO Transaction_History(Transaction_ID, Loan_Number, Transaction_Date, Amount, Transaction_Description, Updated_Balance)
+VALUES (transaction_id_sq.nextval, 'SCT000000001', TO_DATE('2023-10-16','YYYY-MM-DD'), 205, 'Payment 2', 6590);
+INSERT INTO Transaction_History(Transaction_ID, Loan_Number, Transaction_Date, Amount, Transaction_Description, Updated_Balance)
+VALUES (transaction_id_sq.nextval, 'SCT000000003', TO_DATE('2023-09-16','YYYY-MM-DD'), 350, 'Payment 1', 39650);
+INSERT INTO Transaction_History(Transaction_ID, Loan_Number, Transaction_Date, Amount, Transaction_Description, Updated_Balance)
+VALUES (transaction_id_sq.nextval, 'SCT000000003', TO_DATE('2023-10-16','YYYY-MM-DD'), 350, 'Payment 2', 39300);
+COMMIT;
+
+
+-- CREATE all indexes
+-- Ethan Davenport ead2896
+
+-- All foreign keys
+CREATE INDEX Employees_Branch_ID_ix ON Employees (Branch_ID);
+CREATE INDEX Loans_Member_ID_ix ON Loans (Member_ID);
+CREATE INDEX Loans_Employee_ID_ix ON Loans (Employee_ID);
+CREATE INDEX Transaction_History_Loan_Number_ix ON Transaction_History (Loan_Number);
+CREATE INDEX Member_Phone_Member_ID_ix ON Member_Phone (Member_ID);
+CREATE INDEX Link_Member_ID_ix ON Member_Address_Link (Member_ID);
+CREATE INDEX Link_Address_ID_ix ON Member_Address_Link (Address_ID);
+
+-- Three other instances (frequently used in searches)
+CREATE INDEX Transaction_History_Updated_Balance ON Transaction_History (Updated_Balance);
+CREATE INDEX Member_Phone_Number ON Member_Phone (Phone_Number);
+CREATE INDEX Loans_Status ON Loans (Loan_Status);
+
+
+-- View Results
+-- Ethan Davenport ead2896
+SELECT *
+FROM Members;
+SELECT *
+FROM Member_Tax_ID;
+SELECT *
+FROM Member_Phone;
+SELECT *
+FROM Member_Address;
+SELECT *
+FROM Member_Address_Link;
+SELECT *
+FROM Employees;
+SELECT *
+FROM Branch;
+SELECT *
+FROM Loans;
+SELECT *
+FROM Transaction_History;
