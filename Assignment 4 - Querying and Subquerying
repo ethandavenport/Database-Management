@@ -1,0 +1,134 @@
+-- MIS 325 Assignment 4
+-- Ethan Davenport ead2896
+
+-- Problem 1
+SELECT count(loan_number) as number_of_loans,
+	   min(original_amount) as lowest_loan_amount,
+	   max(original_amount) as highest_loan_amount
+FROM loans;
+
+-- Problem 2
+SELECT e.first_name, e.last_name, 
+       count(loan_number) as loan_count,
+	   round(avg(original_amount),2) as average_loan_amount
+FROM employee e INNER JOIN loans l
+	ON e.employee_id = l.employee_id
+GROUP BY e.first_name, e.last_name
+ORDER BY loan_count DESC;
+
+-- Problem 3
+SELECT e.first_name, e.last_name,
+	   count(l.loan_number) as loan_count,
+	   round(avg(l.original_amount),2) as average_loan_amount,
+       max(l.interest_rate) - min(l.interest_rate) as range_int,
+	   round(avg(l.interest_rate),2) as avg_int
+FROM employee e INNER JOIN loans l
+	ON e.employee_id = l.employee_id
+GROUP BY e.first_name, e.last_name
+ORDER BY loan_count DESC, range_int DESC;
+
+-- Problem 4
+SELECT m.first_name, m.last_name, p.phone_number,
+	   sum(l.original_amount) as total_loan_amount,
+	   count(l.loan_number) as total_number_of_loan 
+FROM members m INNER JOIN loans l ON m.member_id = l.member_id
+               INNER JOIN member_phone p ON m.member_id = p.member_id
+WHERE p.phone_type = 'P'
+GROUP BY m.first_name, m.last_name, p.phone_number
+ORDER BY total_loan_amount DESC;
+
+-- Problem 5 -- don't worry, transaction_history didn't populate
+SELECT m.first_name, m.last_name, m.email_address,
+	   count(th.transaction_id) as transaction_count 
+FROM members m INNER JOIN loans l ON m.member_id = l.member_id
+               INNER JOIN transaction_history th ON l.loan_number = th.loan_number
+GROUP BY m.first_name, m.last_name, m.email_address
+HAVING count(th.transaction_id) > 22
+ORDER BY transaction_count DESC;
+
+-- Problem 6 -- don't worry, transaction_history didn't populate
+SELECT m.first_name, m.last_name, m.email_address,
+	   count(th.transaction_id) as transaction_count 
+FROM members m INNER JOIN loans l ON m.member_id = l.member_id
+               INNER JOIN transaction_history th ON l.loan_number = th.loan_number
+WHERE th.amount >= 700
+GROUP BY m.first_name, m.last_name, m.email_address
+HAVING count(th.transaction_id) > 22
+ORDER BY transaction_count DESC;
+
+-- Problem 7
+SELECT b.branch_state, b.branch_name,
+       count(l.loan_number) as total_loans_processed
+FROM branch b INNER JOIN employee e ON b.branch_id = e.branch_id
+              INNER JOIN loans l ON e.employee_id = l.employee_id
+GROUP BY ROLLUP(b.branch_state, b.branch_name);
+    -- New York is the state with the most loans processed at 43
+
+-- Problem 8
+SELECT branch_state, branch_name,
+       sum(original_amount) as total_loan_amount
+FROM branch b INNER JOIN employee e ON b.branch_id = e.branch_id
+              INNER JOIN loans l ON e.employee_id = l.employee_id
+GROUP BY branch_state, branch_name
+HAVING sum(original_amount) > 2000000
+ORDER BY total_loan_amount DESC;
+
+-- Problem 9
+SELECT loan_number, original_amount
+FROM loans
+WHERE original_amount > (SELECT avg(original_amount)
+                         FROM loans)
+ORDER BY original_amount;
+
+-- Problem 10
+SELECT member_id, first_name, last_name
+FROM members
+WHERE member_id IN (SELECT DISTINCT member_id
+                    FROM loans)
+ORDER BY member_id;
+
+-- Problem 11
+SELECT employee_id, first_name, last_name, email
+FROM employee
+WHERE employee_id IN (SELECT DISTINCT e.employee_id
+                      FROM employee e LEFT OUTER JOIN loans l
+                          ON e.employee_id = l.employee_id
+                      WHERE l.employee_id IS NULL);
+
+-- Problem 12 -- don't worry, transaction_history didn't populate
+SELECT email_address, max(total_payment_amount) as max_payment_total
+FROM (SELECT m.email_address, l.loan_number, sum(th.amount) as total_payment_amount
+      FROM members m INNER JOIN loans l ON m.member_id = l.member_id
+                     INNER JOIN transaction_history th ON l.loan_number = th.loan_number
+      GROUP BY m.email_address, l.loan_number)
+GROUP BY email_address
+ORDER BY email_address;
+
+-- Problem 13
+SELECT m.member_id,
+       mal.address_status,
+       ma.address_line_1,
+       ma.address_line_2,
+       ma.city,
+       ma.member_state,
+       ma.zip_code
+FROM members m INNER JOIN member_address_link mal ON m.member_id = mal.member_id
+               INNER JOIN member_address ma ON mal.address_id = ma.address_id
+WHERE m.member_id IN (SELECT member_id
+                      FROM member_address_link
+                      GROUP BY member_id
+                      HAVING count(member_id) >= 3)
+ORDER BY m.member_id, mal.address_status;
+
+-- Problem 14
+SELECT summary.transaction_start_date, l.loan_number, origination_date, original_amount
+FROM loans l INNER JOIN (SELECT th.loan_number, min(transaction_date) as transaction_start_date
+                         FROM members m INNER JOIN loans l ON m.member_id = l.member_id
+                                        INNER JOIN transaction_history th ON l.loan_number = th.loan_number
+                         GROUP BY th.loan_number) summary
+    ON l.loan_number = summary.loan_number
+WHERE l.loan_status = 'P'
+ORDER BY transaction_start_date, loan_number;
+
+
+

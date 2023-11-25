@@ -1,0 +1,110 @@
+-- Problem 1
+SELECT SYSDATE,
+       TO_CHAR(SYSDATE, 'FMDAY, FMMONTH, FMYEAR') as day_month_year,
+       TO_CHAR(SYSDATE, 'MM/DD/YY') || ' - hour:' || TO_CHAR(SYSDATE, 'HH24') as date_with_hours,
+       ROUND(TO_NUMBER(TO_DATE('31-DEC-2023') - SYSDATE)) as days_til_end_of_year,
+       LOWER(TO_CHAR(SYSDATE, 'Mon Dy YYYY')) as lowercase,
+       TO_CHAR(35*8*5*52, '$999,999') as initial_salary
+FROM dual;
+
+-- Problem 2
+SELECT e.employee_id,
+      (first_name || ' ' || last_name || nvl2(l.employee_id, ' has processed a loan.', ' has not processed a loan.')) as "Employee Information",
+      ('Loan started: ' || TO_CHAR(origination_date, 'Mon-DD-YYYY')) as "Loan Origination Date"
+FROM employee e FULL OUTER JOIN loans l
+    ON e.employee_id = l.employee_id
+ORDER BY e.employee_id, "Loan Origination Date";
+
+-- Problem 3
+SELECT UPPER(last_name || ', ' || SUBSTR(first_name,1,1)) as employee_name,
+       branch_state,
+       TO_CHAR(birthdate, 'DD-Mon-YYYY') as "Date of Birth",
+       phone_number
+FROM employee e INNER JOIN branch b
+    ON e.branch_id = b.branch_id
+WHERE birthdate >= '01-Jan-2000' and branch_state IN ('NY', 'MD')
+ORDER BY "Date of Birth";
+
+-- Problem 4
+SELECT UPPER(first_name || ' ' || last_name) as name,
+       emp_level,
+       CASE
+            WHEN emp_level = 1 THEN TO_CHAR(38000, '$999,999') || ' to' || TO_CHAR(50000, '$999,999')
+            WHEN emp_level = 2 THEN TO_CHAR(50001, '$999,999') || ' to' || TO_CHAR(80000, '$999,999')
+            WHEN emp_level = 3 THEN TO_CHAR(80001, '$999,999') || ' to' || TO_CHAR(105000, '$999,999')
+       END AS salary
+FROM employee
+ORDER BY emp_level DESC, name;
+
+-- Problem 5
+SELECT first_name || ' ' || nvl2(middle_name, substr(middle_name,1,1) || '. ', '') || last_name as full_name,
+       email_address,
+       length(email_address) as email_length,
+       loan_number,
+       ROUND(SYSDATE - TO_DATE(origination_date)) as days_since_loan_originated
+FROM members m INNER JOIN loans l
+    ON m.member_id = l.member_id
+WHERE ROUND(SYSDATE - TO_DATE(origination_date)) > 500
+ORDER BY days_since_loan_originated;
+    -- time has passed since the example answer, so more loans are at least 500 days old
+    -- my answer matches starting at line 8
+    
+-- Problem 6
+SELECT employee_id, first_name, last_name,
+       substr(phone_number, 1, instr(phone_number, '-') - 1) as phone_area_code,
+       substr(email, 1, instr(email, '@') - 1) as email_id
+FROM employee
+ORDER BY phone_area_code;
+
+-- Problem 7
+SELECT first_name || ' ' || last_name as member_name,
+       substr(tax_id, 1, 4) || '***-****' as redacted_tax_id
+FROM loans l INNER JOIN members m on l.member_id = m.member_id
+             INNER JOIN member_tax_id mti on m.member_id = mti.member_id
+WHERE origination_date > '01-JAN-2023'
+ORDER BY member_name;
+
+-- Problem 8
+SELECT CASE
+           WHEN interest_rate > 5.5 THEN 'High Interest Rate'
+           WHEN interest_rate BETWEEN 3.5 AND 5.5 THEN 'Medium Interest Rate'
+           ELSE 'Low Interest Rate'
+           END AS interest_type,
+       interest_rate, loan_type, loan_number
+FROM loans
+ORDER BY interest_rate DESC;
+
+-- Problem 9
+SELECT first_name, last_name, emp_level,
+       sum(original_amount) as total_original_amount,
+       DENSE_RANK() OVER (ORDER BY sum(original_amount) DESC) as total_amount_rank
+FROM employee e INNER JOIN loans l
+    ON e.employee_id = l.employee_id
+GROUP BY first_name, last_name, emp_level;
+
+-- Problem 10
+    -- Part A
+SELECT *
+FROM (SELECT first_name, last_name, emp_level,
+          sum(original_amount) as total_original_amount,
+          DENSE_RANK() OVER (ORDER BY sum(original_amount) DESC) as total_amount_rank
+      FROM employee e INNER JOIN loans l
+          ON e.employee_id = l.employee_id
+      GROUP BY first_name, last_name, emp_level)
+WHERE rownum <= 6;
+    -- unlike using WHERE rownum <= 6 in the previous problem,
+    -- this one actually outputs the top six total_original_amounts.
+    -- this is because we are filtering AFTER sorting rather than before. 
+
+    -- Part B
+SELECT *
+FROM (SELECT first_name, last_name, emp_level,
+          sum(original_amount) as total_original_amount,
+          DENSE_RANK() OVER (ORDER BY sum(original_amount) DESC) as total_amount_rank
+      FROM employee e INNER JOIN loans l
+          ON e.employee_id = l.employee_id
+      GROUP BY first_name, last_name, emp_level)
+WHERE total_amount_rank <= 4;
+    -- using WHERE on a column alias works here because it's no longer a column alias.
+    -- the 'alias' is in the FROM statement, not the SELECT statement
+

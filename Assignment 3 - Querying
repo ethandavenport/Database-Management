@@ -1,0 +1,152 @@
+-- MIS 325 Assignment 3
+-- Ethan Davenport ead2896
+
+-- Problem 1
+SELECT employee_id, first_name, last_name, phone_number
+FROM employee
+ORDER BY last_name;
+
+-- Problem 2
+SELECT (first_name || ' ' || substr(middle_name,1,1) || '. ' || last_name) as member_full_name
+FROM members
+WHERE middle_name IS NOT NULL AND
+     (last_name LIKE 'A%' OR last_name LIKE 'B%' OR last_name LIKE 'C%')
+ORDER BY first_name, substr(last_name,1,1);
+
+    -- copy
+SELECT (first_name || ' ' || substr(middle_name,1,1) || '. ' || last_name) as member_full_name
+FROM members
+WHERE middle_name IS NOT NULL AND
+      substr(last_name,1,1) IN ('A', 'B', 'C')
+ORDER BY first_name, substr(last_name,1,1);
+
+-- Problem 3
+SELECT loan_type, member_id, original_amount, origination_date
+FROM loans
+WHERE original_amount > 30000 AND original_amount <= 40000
+ORDER BY loan_type, original_amount DESC;
+
+-- Problem 4
+    -- Part A
+SELECT loan_type, member_id, original_amount, origination_date
+FROM loans
+WHERE original_amount BETWEEN 30000 AND 40000
+ORDER BY loan_type, original_amount DESC;
+
+    -- Part B
+SELECT loan_type, member_id, original_amount, origination_date
+FROM loans
+WHERE original_amount > 30000 AND original_amount <= 40000
+
+    minus
+    
+SELECT loan_type, member_id, original_amount, origination_date
+FROM loans
+WHERE original_amount BETWEEN 30000 AND 40000;
+
+-- Problem 5
+SELECT loan_type, origination_date, original_amount, number_of_payments, payment_amount,
+      (number_of_payments*payment_amount) as total_payment,
+      (number_of_payments*payment_amount-original_amount) as total_interest
+FROM loans
+WHERE ROWNUM <= 4
+ORDER BY total_payment DESC;
+
+-- Problem 6
+SELECT loan_number, transaction_date, amount, updated_balance,
+      (round(updated_balance/amount,2)) as average_number_payment_to_date
+FROM transaction_history
+WHERE updated_balance/amount > 250
+ORDER BY average_number_payment_to_date DESC;
+
+-- Problem 7
+SELECT loan_number, member_id, origination_date, loan_notes
+FROM loans
+WHERE loan_notes IS NOT NULL
+ORDER BY 1;
+
+-- Problem 8 
+SELECT SYSDATE as today_unformatted,
+       TO_CHAR(SYSDATE, 'MM/DD/YYYY') as today_formatted,
+       250000 as loan,
+       0.075 as mortgage_rate,
+       250000*0.075 as annual_interest_amount,
+       250000*0.075*15 as total_interest_15_years
+FROM dual;
+
+-- Problem 9
+SELECT loan_number, loan_type, original_amount, origination_date
+FROM loans
+WHERE loan_type != 'MO'
+ORDER BY original_amount DESC
+FETCH FIRST 5 ROWS ONLY;
+
+-- Problem 10
+SELECT branch_state, branch_name, first_name, last_name, emp_level
+FROM employee e INNER JOIN branch b
+    ON e.branch_id = b.branch_id
+ORDER BY branch_state, branch_name, emp_level DESC;
+
+-- Problem 11
+SELECT (first_name || ' ' || last_name) as "Member Name",
+        address_status, address_line_1, address_line_2, city, member_state, zip_code, email_address
+FROM members INNER JOIN member_address_link ON members.member_id = member_address_link.member_id
+             INNER JOIN member_address ON member_address_link.address_id = member_address.address_id
+WHERE email_address = 'aheapez@naver.com';
+
+-- Problem 12
+SELECT first_name, last_name, phone_number, phone_type
+FROM members m INNER JOIN member_phone p
+    ON m.member_id = p.member_id
+WHERE p.phone_type = 'P' AND m.member_id in (1001,1002);
+
+-- Problem 13
+SELECT m.first_name as member_first_name,
+       m.last_name as member_last_name,
+       e.branch_id,
+       e.first_name as employee_first_name,
+       e.last_name as employee_last_name,
+       l.loan_number,
+       l.original_amount,
+       l.origination_date,
+       th.updated_balance
+FROM members m INNER JOIN loans l ON m.member_id = l.member_id 
+               INNER JOIN employee e ON l.employee_id = e.employee_id
+               INNER JOIN transaction_history th ON l.loan_number = th.loan_number
+ORDER BY e.branch_id, l.loan_number, th.updated_balance DESC;
+
+-- Problem 14
+SELECT m.member_id, p.phone_id
+FROM members m FULL OUTER JOIN member_phone p
+    ON m.member_id = p.member_id
+WHERE phone_id IS NULL;
+
+-- Problem 15
+    -- not using UNION: this feels simpler
+SELECT CASE
+           WHEN interest_rate > 5.5 THEN 'High Interest Rate'
+           WHEN interest_rate BETWEEN 3.5 AND 5.5 THEN 'Medium Interest Rate'
+           ELSE 'Low Interest Rate'
+           END AS interest_type,
+       interest_rate, loan_type, loan_number
+FROM loans
+ORDER BY interest_rate DESC;
+
+    -- using UNION
+SELECT 'High Interest Rate' as interest_type, interest_rate, loan_type, loan_number
+FROM loans
+WHERE interest_rate > 5.5
+
+    union
+    
+SELECT 'Medium Interest Rate' as interest_type, interest_rate, loan_type, loan_number
+FROM loans
+WHERE interest_rate BETWEEN 3.5 AND 5.5
+
+    union
+    
+SELECT 'Low Interest Rate' as interest_type, interest_rate, loan_type, loan_number
+FROM loans
+WHERE interest_rate < 3.5
+ORDER BY interest_rate DESC;
+
