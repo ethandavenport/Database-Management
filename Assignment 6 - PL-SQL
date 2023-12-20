@@ -1,0 +1,211 @@
+-- turn on server output
+SET serveroutput on;
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Test');
+END;
+/
+
+-- Problem 1A
+DECLARE
+  count_loans NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO count_loans
+  FROM loans
+  WHERE member_id = 1018;
+
+  IF count_loans > 1 THEN
+    DBMS_OUTPUT.PUT_LINE('The member has taken out more than 1 loan.');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('The member has taken only 1 loan.');
+  END IF;
+END;
+/
+    -- member has taken out more than one loan
+
+-- Problem 1B
+DELETE FROM loans
+WHERE loan_number = 'SNB000100112' AND member_id = 1018;
+    -- we are able to delete this row as is because loan_number is not used anywhere else as a foreign key.
+    -- we have no records from this loan in transaction history, but if we did,
+    -- we would have to delete these first by running the following code:
+DELETE FROM transaction_history
+WHERE loan_number = 'SNB000100112';
+
+ROLLBACK;
+
+-- Problem 1C
+DECLARE
+  count_loans NUMBER;
+BEGIN
+  SELECT COUNT(*) INTO count_loans
+  FROM loans
+  WHERE member_id = 1018;
+
+  IF count_loans > 1 THEN
+    DBMS_OUTPUT.PUT_LINE('The member has taken out more than 1 loan.');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('The member has taken only 1 loan.');
+  END IF;
+END;
+/
+    -- member has now only taken out only one loan
+    
+-- Problem 1D
+ROLLBACK;
+
+-- Problem 2
+SET DEFINE ON;
+SET SERVEROUTPUT ON;
+
+DECLARE
+  v_member_id NUMBER;
+  count_loans NUMBER;
+BEGIN
+  v_member_id := &member_id;
+
+  SELECT COUNT(*) INTO count_loans
+  FROM loans
+  WHERE member_id = v_member_id;
+
+  IF count_loans > 1 THEN
+    DBMS_OUTPUT.PUT_LINE('The member with ID:' || v_member_id || ' has taken out more than 1 loan.');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('The member with ID:' || v_member_id || ' has taken out only 1 loan.');
+  END IF;
+EXCEPTION
+  WHEN NO_DATA_FOUND THEN
+    DBMS_OUTPUT.PUT_LINE('Invalid member_id. No records found for member with ID:' || v_member_id);
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('An error occurred.');
+END;
+/
+
+-- Problem 3
+DECLARE
+  v_branch_id NUMBER;
+BEGIN
+  SELECT branch_id_sq.nextval INTO v_branch_id FROM dual;
+  INSERT INTO branch (branch_id, BRANCH_NAME, STREET, CITY, BRANCH_STATE, ZIP_CODE)
+  VALUES (v_branch_id, 'Oakland', '72 Iowa Boulevard', 'Portland', 'ME', '12127');
+
+  COMMIT;
+  
+  DBMS_OUTPUT.PUT_LINE('1 row was inserted into the branch table.');
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('Row was not inserted. Unexpected exception occurred.');
+END;
+/
+
+-- Problem 4
+DECLARE
+  TYPE loan_status_table IS TABLE OF loans.loan_status%TYPE INDEX BY PLS_INTEGER;
+  l_loan_statuses loan_status_table;
+BEGIN
+  SELECT DISTINCT loan_status
+  BULK COLLECT INTO l_loan_statuses
+  FROM loans
+  ORDER BY loan_status;
+
+  FOR i IN 1..l_loan_statuses.COUNT LOOP
+    DBMS_OUTPUT.PUT_LINE('Loan Status ' || i || ': ' || l_loan_statuses(i));
+  END LOOP;
+END;
+/
+
+-- Problem 5
+DECLARE
+  CURSOR c_loan_data IS
+    SELECT
+      l.loan_number,
+      l.loan_status,
+      COUNT(th.transaction_id) AS payment_count
+    FROM
+      loans l
+      LEFT JOIN transaction_history th ON l.loan_number = th.loan_number
+    GROUP BY
+      l.loan_number, l.loan_status
+    ORDER BY
+      l.loan_status, l.loan_number;
+
+  TYPE loan_data_table IS TABLE OF c_loan_data%ROWTYPE INDEX BY PLS_INTEGER;
+  l_loan_data loan_data_table;
+BEGIN
+  OPEN c_loan_data;
+  FETCH c_loan_data BULK COLLECT INTO l_loan_data;
+  CLOSE c_loan_data;
+
+  FOR i IN 1..l_loan_data.COUNT LOOP
+    DBMS_OUTPUT.PUT_LINE('Loan Number: ' || l_loan_data(i).loan_number ||
+                         ' of status ' || substr(l_loan_data(i).loan_status,1,1) ||
+                         ' has ' || l_loan_data(i).payment_count || ' payments.');
+  END LOOP;
+END;
+/
+
+-- Problem 6
+CREATE OR REPLACE PROCEDURE insert_branch(
+    p_branch_id    IN NUMBER,
+    p_branch_name  IN VARCHAR2,
+    p_street       IN VARCHAR2,
+    p_city         IN VARCHAR2,
+    p_branch_state IN VARCHAR2,
+    p_zip_code     IN VARCHAR2
+)
+AS
+BEGIN
+    -- Insert a new branch with the provided values
+    INSERT INTO branch (branch_id, branch_name, street, city, branch_state, zip_code)
+    VALUES (p_branch_id, p_branch_name, p_street, p_city, p_branch_state, p_zip_code);
+
+    -- Commit the transaction
+    COMMIT;
+
+    DBMS_OUTPUT.PUT_LINE('New branch inserted with ID: ' || p_branch_id);
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('An error occurred: ' || SQLERRM);
+        -- Optionally, you may want to ROLLBACK the transaction here
+        ROLLBACK;
+END insert_branch;
+/
+
+    -- test results
+CALL insert_branch (1000, 'Austin 22', '22 Austin St', 'Austin', 'TX', '72222');
+BEGIN
+insert_branch (1001, 'Houston 33', '33 Houston St', 'Houston', 'TX', '73333');
+END;
+/
+
+-- Problem 7
+CREATE OR REPLACE FUNCTION loan_count(p_member_id NUMBER)
+RETURN NUMBER
+AS
+  v_count NUMBER;
+BEGIN
+  -- Count the number of loans for the specified member_id
+  SELECT COUNT(*) INTO v_count
+  FROM loans
+  WHERE member_id = p_member_id;
+
+  -- Return the count
+  RETURN v_count;
+END loan_count;
+/
+
+    -- test results
+select member_id, last_name, loan_count(member_id)
+from members
+group by member_id, last_name
+order by member_id;
+
+select member_id, last_name, loan_count(member_id)
+from members
+where loan_count(member_id) > 1
+group by member_id, last_name
+order by member_id;
+
+
+
+
+
